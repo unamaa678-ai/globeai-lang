@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GlobalStore AI — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14171F;
+    --ink-soft: #55596A;
+    --paper: #FBFBFA;
+    --panel: #FFFFFF;
+    --line: #E3E4E0;
+    --teal: #0F6E5C;
+    --teal-soft: #E4F1EE;
+    --amber: #B4690E;
+    --amber-soft: #FBEDDD;
+    --slate: #3B5BA5;
+    --slate-soft: #E9EDF6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: "IBM Plex Mono", monospace; }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 232px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 28px 20px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 36px; }
+
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: var(--teal);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-mark svg { width: 16px; height: 16px; }
+  .brand-name { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+
+  .nav button {
+    all: unset;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 6px;
+    color: var(--ink-soft);
+    font-size: 14px; font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+  }
+  .nav button.active { background: var(--teal-soft); color: var(--teal); }
+  .nav button:hover:not(.active) { background: #F2F2F0; }
+  .nav svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sidebar-foot {
+    margin-top: auto; padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--ink-soft);
+  }
+  .sidebar-foot .store {
+    display: flex; align-items: center; gap: 6px; margin-top: 6px;
+    color: var(--ink); font-weight: 500;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+
+  /* Main */
+  .main { flex: 1; padding: 36px 48px 60px; max-width: 1100px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .page-head { margin-bottom: 28px; }
+  .page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .page-head p { margin: 0; color: var(--ink-soft); font-size: 14.5px; max-width: 60ch; }
+
+  /* Stats */
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; margin-bottom: 40px;
+  }
+  .stat { background: var(--panel); padding: 18px 20px; }
+  .stat-value { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .stat-label { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+
+  .section { margin-bottom: 40px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .section-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .section-head .count { color: var(--amber); font-weight: 600; }
+  .section-head button.link {
+    all: unset; font-size: 13px; color: var(--teal); font-weight: 500; cursor: pointer;
+  }
+
+  /* Conversation rows (used on Overview + Conversations views) */
+  .convo-list { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .convo-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+    cursor: default;
+  }
+  .convo-row:last-child { border-bottom: none; }
+  .convo-row.needs-reply { border-left: 3px solid var(--amber); }
+  .convo-row.resolved { border-left: 3px solid var(--teal); }
+  .convo-row.open { border-left: 3px solid var(--slate); }
+  .flag { font-size: 20px; line-height: 1; }
+  .convo-body { flex: 1; min-width: 0; }
+  .convo-phone { font-size: 14px; font-weight: 600; }
+  .convo-preview {
+    font-size: 13.5px; color: var(--ink-soft); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .badge.amber { background: var(--amber-soft); color: var(--amber); }
+  .badge.teal { background: var(--teal-soft); color: var(--teal); }
+  .badge.slate { background: var(--slate-soft); color: var(--slate); }
+
+  /* Filter pills on Conversations view */
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; }
+  .filters button {
+    all: unset; font-size: 13px; font-weight: 500; padding: 6px 14px;
+    border-radius: 20px; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer;
+  }
+  .filters button.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+  /* Example exchange */
+  .exchange { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 22px 24px; }
+  .exchange-msg { max-width: 480px; margin-bottom: 18px; }
+  .exchange-msg:last-child { margin-bottom: 0; }
+  .exchange-msg.from-ai { margin-left: auto; }
+  .exchange-meta { font-size: 12px; color: var(--ink-soft); margin-bottom: 5px; }
+  .exchange-bubble { background: #F2F2F0; border-radius: 10px; padding: 10px 14px; font-size: 14.5px; }
+  .from-ai .exchange-bubble { background: var(--teal-soft); }
+  .exchange-translation {
+    font-size: 13px; color: var(--ink-soft); margin-top: 7px; padding-top: 7px;
+    border-top: 1px dashed var(--line);
+  }
+
+  /* Stores view */
+  .store-card {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+    padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .store-card .name { font-weight: 600; font-size: 14.5px; }
+  .store-card .meta { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+  .connect-btn {
+    all: unset; background: var(--teal); color: white; font-size: 13.5px; font-weight: 500;
+    padding: 8px 16px; border-radius: 7px; cursor: pointer;
+  }
+  .empty-add {
+    border: 1px dashed var(--line); border-radius: 10px; padding: 24px;
+    text-align: center; color: var(--ink-soft); font-size: 13.5px;
+  }
+
+  /* Settings view */
+  .settings-card {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+    padding: 20px; margin-bottom: 16px; max-width: 520px;
+  }
+  .settings-card h3 { font-size: 14.5px; font-weight: 600; margin: 0 0 4px; }
+  .settings-card .desc { font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle {
+    width: 40px; height: 22px; border-radius: 20px; background: var(--teal);
+    position: relative; cursor: pointer; flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ""; position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px; border-radius: 50%; background: white;
+  }
+  .field-label { font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block; }
+  .field-input {
+    width: 100%; border: 1px solid var(--line); border-radius: 7px;
+    padding: 9px 12px; font-size: 13.5px; font-family: inherit; color: var(--ink);
+  }
+
+  @media (max-width: 720px) {
+    .sidebar { display: none; }
+    .main { padding: 24px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z"></path></svg>
+      </div>
+      <div class="brand-name">GlobalStore AI</div>
+    </div>
+
+    <div class="nav">
+      <button data-view="overview" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+        Overview
+      </button>
+      <button data-view="conversations">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Conversations
+      </button>
+      <button data-view="stores">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18l-2 9H5z"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path></svg>
+        Stores
+      </button>
+      <button data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+        Settings
+      </button>
+    </div>
+
+    <div class="sidebar-foot">
+      Connected store
+      <div class="store"><span class="dot"></span> mystore.myshopify.com</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="page-head">
+        <h1>Overview</h1>
+        <p>How your customers are being helped, in their own language, across every conversation today.</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-value">14</div><div class="stat-label">Open conversations</div></div>
+        <div class="stat"><div class="stat-value">6</div><div class="stat-label">Languages this week</div></div>
+        <div class="stat"><div class="stat-value">82%</div><div class="stat-label">Answered by AI, no wait</div></div>
+        <div class="stat"><div class="stat-value mono">4.2s</div><div class="stat-label">Average reply time</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Needs your reply <span class="count">(2)</span></h2>
+          <button class="link" data-goto="conversations">View all conversations →</button>
+        </div>
+        <div class="convo-list">
+          <div class="convo-row needs-reply">
+            <span class="flag">🇫🇷</span>
+            <div class="convo-body"><div class="convo-phone">+33 6 12 34 56 78</div><div class="convo-preview">"Bonjour, ma commande est-elle expédiée ?"</div></div>
+            <span class="badge amber">Waiting on you</span>
+          </div>
+          <div class="convo-row needs-reply">
+            <span class="flag">🇩🇪</span>
+            <div class="convo-body"><div class="convo-phone">+49 151 2345678</div><div class="convo-preview">"Gibt es diesen Artikel in Größe M?"</div></div>
+            <span class="badge amber">Waiting on you</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Handled by AI today</h2></div>
+        <div class="convo-list">
+          <div class="convo-row resolved">
+            <span class="flag">🇧🇷</span>
+            <div class="convo-body"><div class="convo-phone">+55 11 98765 4321</div><div class="convo-preview">"Qual o prazo de entrega para o Brasil?" — answered in 6 seconds</div></div>
+            <span class="badge teal">Resolved</span>
+          </div>
+          <div class="convo-row resolved">
+            <span class="flag">🇪🇸</span>
+            <div class="convo-body"><div class="convo-phone">+34 612 345 678</div><div class="convo-preview">"¿Puedo cambiar la dirección de envío?" — answered in 4 seconds</div></div>
+            <span class="badge teal">Resolved</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>How a reply looks to your customer</h2></div>
+        <div class="exchange">
+          <div class="exchange-msg">
+            <div class="exchange-meta">Customer · French</div>
+            <div class="exchange-bubble">Bonjour, ma commande est-elle expédiée ?</div>
+            <div class="exchange-translation">You see: "Hello, has my order shipped?"</div>
+          </div>
+          <div class="exchange-msg from-ai">
+            <div class="exchange-meta">AI, on your behalf · sent in French</div>
+            <div class="exchange-bubble">Oui ! Votre commande a été expédiée hier et devrait arriver sous 5 à 7 jours ouvrés.</div>
+            <div class="exchange-translation">Written in English first: "Yes! Your order shipped yesterday and should arrive within 5–7 business days."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONVERSATIONS -->
+    <div class="view" id="view-conversations">
+      <div class="page-head">
+        <h1>Conversations</h1>
+        <p>Every customer chat across every language, in one place.</p>
+      </div>
+
+      <div class="filters">
+        <button class="active" data-filter="all">All (5)</button>
+        <button data-filter="waiting">Waiting on you (2)</button>
+        <button data-filter="open">In progress (1)</button>
+        <button data-filter="resolved">Resolved (2)</button>
+      </div>
+
+      <div class="convo-list">
+        <div class="convo-row needs-reply" data-status="waiting">
+          <span class="flag">🇫🇷</span>
+          <div class="convo-body"><div class="convo-phone">+33 6 12 34 56 78</div><div class="convo-preview">"Bonjour, ma commande est-elle expédiée ?"</div></div>
+          <span class="badge amber">Waiting on you</span>
+        </div>
+        <div class="convo-row needs-reply" data-status="waiting">
+          <span class="flag">🇩🇪</span>
+          <div class="convo-body"><div class="convo-phone">+49 151 2345678</div><div class="convo-preview">"Gibt es diesen Artikel in Größe M?"</div></div>
+          <span class="badge amber">Waiting on you</span>
+        </div>
+        <div class="convo-row open" data-status="open">
+          <span class="flag">🇸🇦</span>
+          <div class="convo-body"><div class="convo-phone">+966 50 123 4567</div><div class="convo-preview">"هل يمكنني إرجاع المنتج بعد الاستخدام؟" — AI is drafting a reply</div></div>
+          <span class="badge slate">In progress</span>
+        </div>
+        <div class="convo-row resolved" data-status="resolved">
+          <span class="flag">🇧🇷</span>
+          <div class="convo-body"><div class="convo-phone">+55 11 98765 4321</div><div class="convo-preview">"Qual o prazo de entrega para o Brasil?" — answered in 6 seconds</div></div>
+          <span class="badge teal">Resolved</span>
+        </div>
+        <div class="convo-row resolved" data-status="resolved">
+          <span class="flag">🇪🇸</span>
+          <div class="convo-body"><div class="convo-phone">+34 612 345 678</div><div class="convo-preview">"¿Puedo cambiar la dirección de envío?" — answered in 4 seconds</div></div>
+          <span class="badge teal">Resolved</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORES -->
+    <div class="view" id="view-stores">
+      <div class="page-head">
+        <h1>Stores</h1>
+        <p>Shopify stores connected to GlobalStore AI. Products from each are indexed so the AI can answer with accurate details.</p>
+      </div>
+
+      <div class="store-card">
+        <div>
+          <div class="name">mystore.myshopify.com</div>
+          <div class="meta">128 products indexed · last synced 12 minutes ago</div>
+        </div>
+        <span class="badge teal">Synced</span>
+      </div>
+
+      <div class="empty-add">
+        Connect another Shopify store to manage it from the same dashboard.
+        <div style="margin-top: 12px;"><button class="connect-btn">+ Connect a store</button></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="page-head">
+        <h1>Settings</h1>
+        <p>Control how the AI responds on your behalf.</p>
+      </div>
+
+      <div class="settings-card">
+        <h3>AI auto-reply</h3>
+        <p class="desc">When on, the AI answers customers instantly. When off, every message waits for you in Conversations.</p>
+        <div class="toggle-row">
+          <span style="font-size: 13.5px;">Enabled</span>
+          <div class="toggle"></div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <h3>WhatsApp number</h3>
+        <p class="desc">The phone number your customers message. Found in your Meta App dashboard.</p>
+        <label class="field-label">Phone Number ID</label>
+        <input class="field-input" type="text" value="102938475610234" />
+      </div>
+
+      <div class="settings-card">
+        <h3>Reply tone</h3>
+        <p class="desc">How the AI should sound when it writes to customers, before translation.</p>
+        <select class="field-input">
+          <option>Friendly and casual</option>
+          <option>Professional</option>
+          <option>Warm and concise</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const views = document.querySelectorAll(".view");
+  const navButtons = document.querySelectorAll(".nav button");
+
+  function showView(name) {
+    views.forEach(v => v.classList.toggle("active", v.id === "view-" + name));
+    navButtons.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  }
+
+  navButtons.forEach(btn => {
+    btn.addEventListener("click", () => showView(btn.dataset.view));
+  });
+
+  document.querySelectorAll("[data-goto]").forEach(btn => {
+    btn.addEventListener("click", () => showView(btn.dataset.goto));
+  });
+
+  // Conversation filter pills
+  const filterButtons = document.querySelectorAll(".filters button");
+  const convoRows = document.querySelectorAll("#view-conversations .convo-row");
+
+  filterButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      filterButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const filter = btn.dataset.filter;
+      convoRows.forEach(row => {
+        row.style.display = (filter === "all" || row.dataset.status === filter) ? "flex" : "none";
+      });
+    });
+  });
+
+  // Settings toggle
+  document.querySelector(".toggle").addEventListener("click", function () {
+    this.style.background = this.style.background === "rgb(227, 228, 224)" ? "#0F6E5C" : "#E3E4E0";
+  });
+</script>
+
+</body>
+</html>

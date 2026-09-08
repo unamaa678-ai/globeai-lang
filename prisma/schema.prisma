@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+generator client_extensions {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+model Merchant {
+  id           String             @id @default(cuid())
+  email        String             @unique
+  businessName String
+  createdAt    DateTime           @default(now())
+  stores       Store[]
+  waSettings   WhatsAppSettings?
+}
+
+model Store {
+  id            String       @id @default(cuid())
+  merchantId    String
+  merchant      Merchant     @relation(fields: [merchantId], references: [id])
+  shopifyDomain String       @unique
+  accessToken   String
+  scopes        String
+  syncStatus    SyncStatus   @default(PENDING)
+  lastSyncedAt  DateTime?
+  products      Product[]
+  conversations Conversation[]
+  createdAt     DateTime     @default(now())
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  shopifyId   String   @unique
+  title       String
+  description String
+  price       Decimal
+  currency    String
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+model WhatsAppSettings {
+  id               String   @id @default(cuid())
+  merchantId       String   @unique
+  merchant         Merchant @relation(fields: [merchantId], references: [id])
+  phoneNumberId    String   @unique
+  accessToken      String
+  autoReplyEnabled Boolean  @default(true)
+  defaultLanguage  String   @default("en")
+}
+
+model Conversation {
+  id            String        @id @default(cuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  customerPhone String
+  customerLang  String
+  status        ConvoStatus   @default(OPEN)
+  createdAt     DateTime      @default(now())
+  messages      Message[]
+
+  @@unique([storeId, customerPhone])
+  @@index([storeId, customerPhone])
+}
+
+model Message {
+  id               String       @id @default(cuid())
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  direction        Direction
+  sender           SenderType
+  originalText     String
+  originalLang     String
+  translatedText   String?
+  translatedLang   String?
+  aiGenerated      Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  ERROR
+}
+
+enum ConvoStatus {
+  OPEN
+  RESOLVED
+  AWAITING_MERCHANT
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum SenderType {
+  CUSTOMER
+  AI
+  MERCHANT
+}
+
+// Note: the Product.embedding vector(1536) column and its ivfflat index
+// are added via raw SQL migration (see prisma/migrations/xxxx_add_vector/migration.sql)
+// since Prisma's client does not yet model pgvector columns natively.
